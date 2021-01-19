@@ -93,7 +93,7 @@ def tobs():
     session = Session(engine)
     #establishing the date to start pulling data from
     prevDate = dt.datetime(2016, 8, 22)
-    #querying the station names and id's
+    #querying the data
     results = session.query(m.date,m.tobs).\
     filter(m.station == "USC00519281").\
     filter(m.date > prevDate).all()
