@@ -31,10 +31,11 @@ def welcomePage():
     """List all available api routes."""
     return (
         f"Available Routes:<br/>"
-        f"For prcipitation in the last year of data go to /api/v1.0/precipitation<br/>"
+        f"For precipitation in the last year of data go to /api/v1.0/precipitation<br/>"
         f"For a list of stations go to /api/v1.0/stations<br/>"
-        f"For temps in the last year of data go to /api/v1.0/tobs<br/>"
-        f"/api/v1.0/precipitation<br/>"
+        f"For temps in the last year of the most active station's data go to /api/v1.0/tobs<br/>"
+        f"For High, low, and average temps from a certain date go to /api/v1.0/start date<br/>"
+        f"For High, low, and average temps from a certain date range go to /api/v1.0/start date/end date"
     )
 
 @app.route("/api/v1.0/precipitation")
@@ -45,10 +46,10 @@ def precipitation():
     lastDate = session.query(m.date).order_by(m.date.desc()).first()
     print(f"The last day of the data is {lastDate}")
     #setting up dates to pull from
-    prevDate = dt.datetime(2016, 8, 22)
+    prevDate = dt.datetime(2016, 8, 23)
     #making my query
     results = session.query(m.date, m.prcp).\
-        filter(m.date > prevDate).\
+        filter(m.date >= prevDate).\
         order_by(m.date).all()
 
     #closing session
@@ -56,10 +57,10 @@ def precipitation():
     #setting up lists to make my json
     prcpList = []
     for date, prcp in results:
-        prcp_dict = {}
-        prcp_dict["date"] = date
-        prcp_dict["prcp"] = prcp
-        prcpList.append(prcp_dict)
+        prcpDict = {}
+        prcpDict["Date"] = date
+        prcpDict["prcp"] = prcp
+        prcpList.append(prcpDict)
 
     return jsonify(prcpList)
 
@@ -79,10 +80,10 @@ def stations():
     #converting our results into a normal list
     stations = []
     for station, name in results:
-        station_dict = {}
-        station_dict["station"] = station
-        station_dict["name"] = name
-        stations.append(station_dict)
+        stationDict = {}
+        stationDict["Station"] = station
+        stationDict["name"] = name
+        stations.append(stationDict)
 
     return jsonify(stations)
 
@@ -102,14 +103,63 @@ def tobs():
     #converting our results into a normal list
     tobsList = []
     for date, tobs in results:
-        tobs_dict = {}
-        tobs_dict["date"] = date
-        tobs_dict["tobs"] = tobs
-        tobsList.append(tobs_dict)
+        tobsDict = {}
+        tobsDict["Date"] = date
+        tobsDict["tobs"] = tobs
+        tobsList.append(tobsDict)
 
     return jsonify(tobsList)
 
+@app.route("/api/v1.0/<start>")
+def startDate(start):
+    #session link
+    session = Session(engine)
 
+    #querying the data
+    results = session.query(m.date, func.min(m.tobs),
+    func.avg(m.tobs), func.max(m.tobs)).\
+    filter(m.date >= start).\
+    group_by(m.date).all()
+    #closing session
+    session.close()
+
+    #converting our results into a normal list
+    dateTemps = []
+    for date, minT, avgT, maxT in results:
+        dTempsDict = {}
+        dTempsDict["Date"] = date
+        dTempsDict["TMIN"] = minT
+        dTempsDict["TAVG"] = avgT
+        dTempsDict["TMAX"] = maxT
+        dateTemps.append(dTempsDict)
+
+    return jsonify(dateTemps)
+
+@app.route("/api/v1.0/<start>/<end>")
+def dateRange(start,end):
+    #session link
+    session = Session(engine)
+
+    #querying the data
+    results = session.query(m.date, func.min(m.tobs),
+    func.avg(m.tobs), func.max(m.tobs)).\
+    filter(m.date >= start).\
+    filter(m.date <= end).\
+    group_by(m.date).all()
+    #closing session
+    session.close()
+
+    #converting our results into a normal list
+    rangeTemps = []
+    for date, minT, avgT, maxT in results:
+        rTempsDict = {}
+        rTempsDict["Date"] = date
+        rTempsDict["TMIN"] = minT
+        rTempsDict["TAVG"] = avgT
+        rTempsDict["TMAX"] = maxT
+        rangeTemps.append(rTempsDict)
+
+    return jsonify(rangeTemps)
 
 if __name__ == '__main__':
     app.run(debug=True)
